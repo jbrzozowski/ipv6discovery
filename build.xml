@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="v6App" default="dist" basedir=".">
+
+    <!-- configure directory properties -->
+    <property name="src.dir" location="${basedir}/src" />
+    <property name="config.dir" location="${basedir}/config" />
+    <property name="bin.dir" location="${basedir}/bin" />
+    <property name="lib.dir" location="${basedir}/lib" />
+    <property name="lib.native.jnetpcap.dir"
+              location="${basedir}/lib-native/jnetpcap" />
+    <property name="config.dir" location="${basedir}/config" />
+    <property name="pcap.dir" location="${basedir}/pcap" />
+    <property name="build.dir" location="${basedir}/build" />
+    <property name="class.dir" location="${build.dir}/ant-classes" />
+    <property name="dist.dir" location="${build.dir}/dist" />
+    <property name="dist.config.dir" location="${dist.dir}/config" />
+    <property name="dist.lib.dir" location="${dist.dir}/lib" />
+    <property name="dist.lib.native.jnetpcap.dir"
+              location="${dist.dir}/lib-native/jnetpcap" />
+    <property name="dist.pcap.dir" location="${dist.dir}/pcap" />
+
+    <!-- configure classpaths -->
+    <path id="build.classpath">
+        <fileset dir="${lib.dir}">
+            <include name="**/*.jar" />
+        </fileset>
+    </path>
+    <path id="runtime.classpath">
+        <fileset dir="${dist.lib.dir}">
+            <include name="*.jar" />
+        </fileset>
+        <pathelement location="${dist.config.dir}" />
+    </path>
+
+    <!-- basic environment setup -->
+    <target name="init" description="Initializes build environment">
+        <echo message="Initializing build environment.." />
+        
+        <!-- set default version -->
+        <property name="version" value="dev"/>
+
+        <!-- create build directories if they don't exist -->
+        <mkdir dir="${build.dir}" />
+        <mkdir dir="${class.dir}" />
+        <mkdir dir="${dist.dir}" />
+    </target>
+
+    <!-- clean generated build files -->
+    <target name="clean" description="Cleans build environment">
+        <echo message="Cleaning build environment" />
+
+        <!-- don't delete top level build dir as Eclipse may be using it -->
+        <delete dir="${class.dir}" />
+        <delete dir="${dist.dir}" />
+    </target>
+
+    <!-- compile source -->
+    <target name="compile"
+            depends="clean,init"
+            description="Builds source code">
+        <echo message="Building source..." />
+        <javac target="1.6"
+               source="1.6"
+               srcdir="${src.dir}"
+               destdir="${class.dir}"
+               classpathref="build.classpath"
+               includeantruntime="false"
+               debug="true"
+    	       debuglevel="lines,vars,source"/>
+    </target>
+
+    <!-- copy jar dependencies -->
+    <target name="jar-deps"
+            depends="init"
+            description="Prepares jar dependencies">
+        <echo message="Preparing jar dependencies..." />
+
+        <!-- copy libs -->
+        <copy todir="${dist.lib.dir}" flatten="true">
+            <fileset dir="${lib.dir}" includes="**/*.jar" />
+        </copy>
+
+        <!-- copy native libs -->
+        <copy todir="${dist.lib.native.jnetpcap.dir}">
+            <fileset dir="${lib.native.jnetpcap.dir}" />
+        </copy>
+
+        <!-- copy config -->
+        <copy todir="${dist.config.dir}">
+            <fileset dir="${config.dir}" />
+        </copy>
+
+        <!-- copy pcaps -->
+        <copy todir="${dist.pcap.dir}">
+            <fileset dir="${pcap.dir}" />
+        </copy>
+
+        <!-- copy scripts -->
+        <copy todir="${dist.dir}">
+            <fileset dir="${bin.dir}" />
+        </copy>
+
+        <!-- copy doc -->
+        <copy todir="${dist.dir}">
+            <fileset file="${basedir}/README.txt" />
+        </copy>
+
+        <!-- copy winpcap -->
+        <copy todir="${dist.dir}">
+            <fileset file="${basedir}/WinPcap_4_1_2.exe" />
+        </copy>
+    </target>
+
+    <!-- build jar file -->
+    <target name="jar"
+            depends="compile,jar-deps"
+            description="Builds jar distribution">
+        <echo message="Building jar..." />
+
+        <!-- note the build time -->
+        <tstamp>
+            <format property="builddate" pattern="yyyy-MM-dd HH:mm:ss" />
+        </tstamp>
+
+        <!-- configure runtime classpath -->
+        <manifestclasspath jarfile="${dist.dir}/${ant.project.name}.jar"
+                           property="jar.classpath">
+            <classpath refid="runtime.classpath" />
+        </manifestclasspath>
+
+        <!-- create the jar -->
+        <jar destfile="${dist.dir}/${ant.project.name}.jar">
+            <fileset dir="${class.dir}" />
+            <manifest>
+                <attribute name="Built-By" value="${user.name}" />
+                <attribute name="Built-Date" value="${builddate}" />
+                <attribute name="Implementation-Title" value="v6App" />
+                <attribute name="Implementation-Vendor"
+                           value="The PTR Group, Inc." />
+                <attribute name="v6App-Version" value="${version}" />
+                <attribute name="Main-Class" value="com.ptr.v6app.main.V6App" />
+                <attribute name="Class-Path" value="${jar.classpath}" />
+            </manifest>
+        </jar>
+    </target>
+
+    <!-- copy jar dependencies -->
+    <target name="dist-deps"
+            depends="init"
+            description="Prepares distribution dependencies">
+        <echo message="Preparing distribution dependencies..." />
+
+        <!-- copy doc -->
+        <copy todir="${dist.dir}">
+            <fileset file="${basedir}/README.txt" />
+        </copy>
+
+        <!-- copy winpcap -->
+        <copy todir="${dist.dir}">
+            <fileset file="${basedir}/WinPcap_4_1_2.exe" />
+        </copy>
+    </target>
+
+    <!-- checks for the lib property -->
+    <target name="check-version"
+            unless="version"
+            description="Checks that the version property is set">
+        <fail message="The version property must be set (e.g., ant -Dversion=0.1)" />
+    </target>
+
+    <!-- builds distribution files -->
+    <target name="dist"
+            if="version"
+            depends="check-version,jar,dist-deps"
+            description="Builds jar distribution">
+        <echo message="Building distribution files..." />
+
+        <!-- create distribution zip -->
+        <zip destfile="${dist.dir}/${ant.project.name}.${version}.zip">
+            <zipfileset dir="${dist.dir}" prefix="v6App" />
+        </zip>
+    </target>
+
+    <!-- checks for the lib property -->
+    <target name="check-lib"
+            unless="lib"
+            description="Checks that the lib property is set">
+        <echo message="Supported libs: win64, win32, ubuntu.x86_64, ubuntu.i386, rhel.x86_64, linux.x86_64, linux.i386" />
+        <fail message="The lib property must be set (e.g., ant run -Dlib=win64)" />
+    </target>
+
+    <!-- run application -->
+    <target name="run"
+            if="lib"
+            depends="check-lib,jar"
+            description="Build and run ${ant.project.name}">
+        <java jar="${dist.dir}/${ant.project.name}.jar" fork="true">
+            <jvmarg value="-Djava.library.path=${lib.native.jnetpcap.dir}${file.separator}${lib}" />
+        </java>
+    </target>
+</project>
